@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
+import clientPromise from "@/lib/mongodb";
 
 const handler = NextAuth({
   providers: [
@@ -15,12 +17,16 @@ const handler = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // Here you would normally query your MongoDB database to verify the user.
-        // For testing your session setup, this mock check ensures login works:
-        if (credentials?.email === "admin@test.com" && credentials?.password === "password123") {
-          return { id: "user_id_12345", name: "Admin User", email: "admin@test.com" };
-        }
-        return null;
+        const email = credentials?.email?.trim().toLowerCase();
+        const password = credentials?.password;
+        if (!email || !password) return null;
+
+        const client = await clientPromise;
+        const user = await client.db("sendiee_vision").collection("users").findOne({ email });
+        if (!user || typeof user.passwordHash !== "string") return null;
+        if (!(await compare(password, user.passwordHash))) return null;
+
+        return { id: user._id.toString(), name: String(user.name ?? email.split("@")[0]), email };
       }
     }),
   ],
@@ -34,10 +40,13 @@ const handler = NextAuth({
     },
 async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id as string;
+        Object.assign(session.user, { id: token.id as string });
       }
       return session;
     },
+  },
+  pages: {
+    signIn: "/login",
   },
   secret: process.env.NEXTAUTH_SECRET,
 });
