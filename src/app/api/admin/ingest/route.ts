@@ -1,1 +1,3 @@
-export async function POST() { return Response.json({ status: "ok" }); }
+import { withAdmin } from "@/lib/auth";
+
+export const POST = withAdmin(async () => Response.json({ status: "ok" }));

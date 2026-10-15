@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import clientPromise from "@/lib/mongodb";
+import { getDb } from "@/lib/mongodb";
 
 export async function POST(request: Request) {
   try {
@@ -20,8 +20,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
     }
 
-    const client = await clientPromise;
-    const users = client.db("sendiee_vision").collection("users");
+    const users = (await getDb()).collection("users");
     const existing = await users.findOne({ email });
     if (existing) {
       return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
