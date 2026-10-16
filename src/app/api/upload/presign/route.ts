@@ -1,37 +1,27 @@
 import { NextResponse } from "next/server";
 import { withAdmin } from "@/lib/auth";
+import { handle, jsonError, readJson, str } from "@/lib/http";
+import { buildObjectKey, createSignedUpload, publicUrlFor, storageConfigured } from "@/lib/storage";
 
-export const POST = withAdmin(async (request, _ctx, admin) => {
-  try {
-    const body = await request.json();
-    const { filename, contentType } = body as {
-      filename?: string;
-      contentType?: string;
-    };
+const ACCEPTED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-    if (!filename || !contentType) {
-      return NextResponse.json(
-        { error: "filename and contentType are required" },
-        { status: 400 }
-      );
-    }
+/**
+ * POST /api/upload/presign { filename, contentType }
+ * Returns a Supabase signed upload URL. The browser PUTs the file there, then
+ * saves the product record through POST /api/images with the returned key.
+ */
+export const POST = withAdmin(async (request, _ctx, admin) =>
+  handle(async () => {
+    const body = await readJson(request);
+    if (!body) return jsonError(400, "Invalid JSON body");
+    const filename = str(body.filename, 200);
+    const contentType = str(body.contentType, 100);
+    if (!filename || !contentType) return jsonError(400, "filename and contentType are required");
+    if (!ACCEPTED.has(contentType)) return jsonError(415, "Only JPEG, PNG and WebP images are accepted");
+    if (!storageConfigured()) return jsonError(503, "Image storage is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
 
-    // ─── Stub response ───────────────────────────────────────────────────────
-    // REAL implementation: generate a signed upload URL from Supabase Storage
-    // and return it here. The object key is namespaced by the signed-in admin's
-    // id (never by a client-supplied userId).
-    // ─────────────────────────────────────────────────────────────────────────
-
-    const key = `users/${admin.id}/uploads/${Date.now()}-${filename}`;
-    const stubUrl = `https://stub-storage.example.com/${key}`;
-
-    return NextResponse.json({
-      uploadUrl: `${stubUrl}?token=presigned-stub`,
-      publicUrl: stubUrl,
-      key,
-    });
-  } catch (err) {
-    console.error("[presign] error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-});
+    const key = buildObjectKey(admin.id, filename);
+    const { uploadUrl, token } = await createSignedUpload(key);
+    return NextResponse.json({ uploadUrl, token, publicUrl: publicUrlFor(key), key });
+  })
+);

@@ -1,5 +1,8 @@
 "use client";
 
+import ApiKeyCard from "@/components/admin/ApiKeyCard";
+import { FLOW_IDS, FLOWS } from "@/lib/flows";
+
 export default function SettingsPage() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto" }}>
@@ -18,11 +21,51 @@ export default function SettingsPage() {
         Manage your account and workspace preferences.
       </p>
 
+      <ApiKeyCard />
+
+      {/* Matching flows */}
+      <div
+        style={{
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-lg)",
+          padding: "20px 24px",
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Matching flows</div>
+        <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 14 }}>
+          Each folder picks a flow, or inherits its parent&apos;s. Products in a folder are matched the way its flow says.
+        </div>
+        <div style={{ display: "grid", gap: 10 }}>
+          {FLOW_IDS.map((id) => {
+            const f = FLOWS[id];
+            return (
+              <div
+                key={id}
+                style={{
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "12px 14px",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{f.label}</div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>{f.description}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+                  For: {f.examples}. Floor {Math.round(f.retrieval.minCosine * 100)}% similarity, margin{" "}
+                  {Math.round(f.retrieval.minMargin * 100)}%
+                  {f.secondStage === "tiebreak" ? ", close candidates double-checked" : ""}.
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {[
         { title: "Account", desc: "Update your name, email, and profile picture." },
         { title: "Notifications", desc: "Configure email and in-app notification preferences." },
-        { title: "Storage", desc: "View and manage your storage quota." },
-        { title: "API Keys", desc: "Generate and manage API keys for integrations." },
         { title: "Danger Zone", desc: "Delete your account or reset all data.", danger: true },
       ].map((section) => (
         <div
@@ -36,18 +79,7 @@ export default function SettingsPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            cursor: "pointer",
-            transition: "border-color 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLDivElement).style.borderColor = section.danger
-              ? "rgba(239,68,68,0.5)"
-              : "var(--border-hover)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLDivElement).style.borderColor = section.danger
-              ? "rgba(239,68,68,0.25)"
-              : "var(--border)";
+            opacity: 0.7,
           }}
         >
           <div>
@@ -61,20 +93,8 @@ export default function SettingsPage() {
             >
               {section.title}
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{section.desc}</div>
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{section.desc} Coming soon.</div>
           </div>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--text-muted)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
         </div>
       ))}
     </div>

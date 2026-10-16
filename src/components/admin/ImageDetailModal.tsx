@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { ProductImage } from "@/lib/mock-data";
+import type { ProductImage } from "@/lib/types";
 import { updateImage, deleteImage } from "@/lib/api";
 import ConfirmDialog from "./ConfirmDialog";
 

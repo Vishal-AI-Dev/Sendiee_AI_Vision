@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Folder } from "@/lib/mock-data";
+import type { Folder } from "@/lib/types";
+import { FLOWS } from "@/lib/flows";
 import ConfirmDialog from "./ConfirmDialog";
 
 interface FolderGridProps {
@@ -227,7 +228,7 @@ function FolderCard({
           {folder.name}
         </div>
         <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          {folder.imageCount} {folder.imageCount === 1 ? "image" : "images"}
+          {folder.imageCount} {folder.imageCount === 1 ? "image" : "images"} · {FLOWS[folder.effectiveFlow].short}{folder.flow ? "" : " (inherited)"}
         </div>
       </div>
 

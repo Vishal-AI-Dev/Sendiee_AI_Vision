@@ -3,6 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { getStats } from "@/lib/api";
+
+const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024; // nominal quota shown on the bar
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
+}
 
 const NAV_LINKS = [
   {
@@ -29,6 +45,17 @@ const NAV_LINKS = [
     ),
   },
   {
+    href: "/admin/match-test",
+    label: "Test match",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="12" cy="12" r="1" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "Settings",
     icon: (
@@ -49,6 +76,14 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [usedBytes, setUsedBytes] = useState<number | null>(null);
+
+  useEffect(() => {
+    getStats()
+      .then((s) => setUsedBytes(s.storageUsedBytes))
+      .catch(() => setUsedBytes(null));
+  }, [pathname]);
+  const usedPct = usedBytes === null ? 0 : Math.min(100, Math.round((usedBytes / STORAGE_QUOTA_BYTES) * 100));
 
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
@@ -138,10 +173,10 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         >
           <div className="flex justify-between items-center mb-2">
             <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500 }}>Storage</span>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>2.4 / 10 GB</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{usedBytes === null ? "—" : formatBytes(usedBytes)} / {formatBytes(STORAGE_QUOTA_BYTES)}</span>
           </div>
           <div className="progress-bar-track">
-            <div className="progress-bar-fill" style={{ width: "24%" }} />
+            <div className="progress-bar-fill" style={{ width: `${usedPct}%` }} />
           </div>
         </div>
       </div>

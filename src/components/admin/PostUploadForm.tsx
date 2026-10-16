@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { saveImageRecord } from "@/lib/api";
-import type { ProductImage } from "@/lib/mock-data";
+import type { ProductImage } from "@/lib/types";
 
 interface PostUploadFormProps {
   uploadedFiles: { file: File; publicUrl: string; key: string }[];
@@ -65,6 +65,8 @@ export default function PostUploadForm({
           .map((t) => t.trim())
           .filter(Boolean),
         description: currentForm.description,
+        fileSize: current.file.size,
+        contentType: current.file.type,
       });
 
       const updated = [...savedImages, img];

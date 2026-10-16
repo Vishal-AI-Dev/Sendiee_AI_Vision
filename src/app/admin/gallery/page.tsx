@@ -5,11 +5,12 @@ import {
   getFolders,
   getImages,
   createFolder,
-  renameFolder,
+  updateFolder,
   deleteFolder,
   moveImage,
 } from "@/lib/api";
-import type { Folder, ProductImage } from "@/lib/mock-data";
+import { DEFAULT_FLOW } from "@/lib/flows";
+import type { Folder, FlowId, ProductImage } from "@/lib/types";
 import FolderGrid from "@/components/admin/FolderGrid";
 import ImageGrid from "@/components/admin/ImageGrid";
 import CreateFolderModal from "@/components/admin/CreateFolderModal";
@@ -21,12 +22,13 @@ import PostUploadForm from "@/components/admin/PostUploadForm";
 interface NavEntry {
   folderId: string | null;
   folderName: string;
+  flow: FlowId; // effective flow of this folder, for the "Inherit" hint
 }
 
 export default function GalleryPage() {
   // ── Navigation / breadcrumb state ────────────────────────────────────────
   const [navStack, setNavStack] = useState<NavEntry[]>([
-    { folderId: null, folderName: "Gallery" },
+    { folderId: null, folderName: "Gallery", flow: DEFAULT_FLOW },
   ]);
   const currentNav = navStack[navStack.length - 1];
 
@@ -35,6 +37,17 @@ export default function GalleryPage() {
   const [images, setImages] = useState<ProductImage[]>([]);
   const [allFolders, setAllFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  /// Run an API call and show its error instead of leaving the UI stuck.
+  const run = async (fn: () => Promise<void>) => {
+    setError("");
+    try {
+      await fn();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +71,8 @@ export default function GalleryPage() {
       setFolders(folderData);
       setImages(imageData);
       setAllFolders(allFolderData);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -84,7 +99,7 @@ export default function GalleryPage() {
     setSearchQuery("");
     setNavStack((prev) => [
       ...prev,
-      { folderId: folder.id, folderName: folder.name },
+      { folderId: folder.id, folderName: folder.name, flow: folder.effectiveFlow },
     ]);
   };
 
@@ -92,29 +107,36 @@ export default function GalleryPage() {
     setNavStack((prev) => prev.slice(0, idx + 1));
   };
 
-  const handleCreateFolder = async (name: string) => {
-    const created = await createFolder(name, currentNav.folderId);
-    setFolders((prev) => [...prev, created]);
-    setShowCreateFolder(false);
-  };
+  const handleCreateFolder = (name: string, flow: FlowId | null) =>
+    run(async () => {
+      const created = await createFolder(name, currentNav.folderId, flow);
+      setFolders((prev) => [...prev, created]);
+      if (currentNav.folderId === null) setAllFolders((prev) => [...prev, created]);
+      setShowCreateFolder(false);
+    });
 
-  const handleRenameFolder = async (name: string) => {
-    if (!renamingFolder) return;
-    const updated = await renameFolder(renamingFolder.id, name);
-    setFolders((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
-    setRenamingFolder(null);
-  };
+  const handleRenameFolder = (name: string, flow: FlowId | null) =>
+    run(async () => {
+      if (!renamingFolder) return;
+      const updated = await updateFolder(renamingFolder.id, { name, flow });
+      setFolders((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+      setAllFolders((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+      setRenamingFolder(null);
+    });
 
-  const handleDeleteFolder = async (folder: Folder) => {
-    await deleteFolder(folder.id);
-    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
-  };
+  const handleDeleteFolder = (folder: Folder) =>
+    run(async () => {
+      await deleteFolder(folder.id);
+      setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+      setAllFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    });
 
   // ── Image handlers ─────────────────────────────────────────────────────────
-  const handleMoveImage = async (imageId: string, targetFolderId: string | null) => {
-    await moveImage(imageId, targetFolderId);
-    setImages((prev) => prev.filter((img) => img.id !== imageId));
-  };
+  const handleMoveImage = (imageId: string, targetFolderId: string | null) =>
+    run(async () => {
+      await moveImage(imageId, targetFolderId);
+      setImages((prev) => prev.filter((img) => img.id !== imageId));
+    });
 
   const handleImageSaved = (updated: ProductImage) => {
     setImages((prev) => prev.map((img) => (img.id === updated.id ? updated : img)));
@@ -262,6 +284,31 @@ export default function GalleryPage() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div
+            role="alert"
+            style={{
+              background: "rgba(239,68,68,0.10)",
+              border: "1px solid rgba(239,68,68,0.35)",
+              borderRadius: "var(--radius-md)",
+              padding: "10px 14px",
+              marginBottom: 16,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              fontSize: 13,
+              color: "var(--text-primary)",
+            }}
+            id="gallery-error"
+          >
+            <span>{error}</span>
+            <button className="btn-ghost" onClick={() => setError("")} type="button">
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Upload Panel (collapsible) */}
         {showUploadPanel && (
@@ -412,6 +459,7 @@ export default function GalleryPage() {
       {/* ── Modals ── */}
       {showCreateFolder && (
         <CreateFolderModal
+          parentFlow={currentNav.flow}
           onClose={() => setShowCreateFolder(false)}
           onConfirm={handleCreateFolder}
         />
@@ -420,6 +468,7 @@ export default function GalleryPage() {
       {renamingFolder && (
         <CreateFolderModal
           existingFolder={renamingFolder}
+          parentFlow={currentNav.flow}
           onClose={() => setRenamingFolder(null)}
           onConfirm={handleRenameFolder}
         />

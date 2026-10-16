@@ -10,6 +10,7 @@ function getBreadcrumbs(pathname: string) {
   const crumbs = [{ label: "Home", href: "/admin" }];
   if (parts[1] === "gallery") crumbs.push({ label: "Gallery", href: "/admin/gallery" });
   if (parts[1] === "settings") crumbs.push({ label: "Settings", href: "/admin/settings" });
+  if (parts[1] === "match-test") crumbs.push({ label: "Test match", href: "/admin/match-test" });
   return crumbs.map((c) => ({ label: c.label }));
 }
 

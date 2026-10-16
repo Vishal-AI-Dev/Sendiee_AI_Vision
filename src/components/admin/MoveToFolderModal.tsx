@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import type { Folder } from "@/lib/mock-data";
+import type { Folder } from "@/lib/types";
 
 interface MoveToFolderModalProps {
   folders: Folder[];

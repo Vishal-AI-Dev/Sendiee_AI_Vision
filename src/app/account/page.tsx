@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import UploadZone from "@/components/admin/UploadZone";
 import { saveImageRecord } from "@/lib/api";
-import type { ProductImage } from "@/lib/mock-data";
+import type { ProductImage } from "@/lib/types";
 
 interface SessionUser {
   id?: string;

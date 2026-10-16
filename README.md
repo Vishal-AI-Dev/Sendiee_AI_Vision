@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sendiee Vision
 
-## Getting Started
+Product-photo matching for Sendiee. A customer sends a photo over WhatsApp or
+Instagram; Sendiee posts it to this service; the service finds the closest
+reference image an admin uploaded and answers with that product's details.
 
-First, run the development server:
+## How it works
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+admin uploads photo ──► Supabase Storage ──► POST /api/images ──► Jina embedding ──► MongoDB (products + Atlas vector index)
+
+customer photo ──► POST /api/match (x-api-key) ──► Jina embedding ──► $vectorSearch top-5
+                                                        │
+                                                        ▼
+                                     flow of the best hit's folder decides
+                                     ├─ visual  : best score wins (clothing, décor)
+                                     └─ precise : close candidates double-checked (parts, electronics)
+                                                        │
+                                                        ▼
+                                     { decision: match | ambiguous | no_match, product, candidates }
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Matching flows** are the multipurpose part. Each folder carries a flow, or
+inherits its parent's (root folders default to visual). Products are matched
+the way their folder's flow says:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Flow | For | Rule |
+|---|---|---|
+| `visual` | sarees, kurtas, clothing, décor | top candidate above 0.80 cosine and 1.5 points ahead of the runner-up |
+| `precise` | mechanical parts, electronics, bottles | top candidate above 0.85; if several are close, a decision model compares the photos (OpenAI Decisions API, optional) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Thresholds live in `src/lib/flows.ts` and are unit-tested in `tests/flows.test.ts`.
+Query photos are embedded from memory and never stored.
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. `npm install`
+2. Copy `.env.example` to `.env.local` and fill it in (MongoDB Atlas, next-auth secret, Jina key, Supabase project + a public-read bucket; the OpenAI key is optional).
+3. `npm run ensure-indexes` — creates the regular indexes and, on Atlas, the `vector_index` vector search index (1024 dims, cosine, filter on `ownerId`). On a local MongoDB it prints the definition instead.
+4. `npm run dev`, open `/register` to create the first admin, then `/admin`.
+5. Settings → **Create key** gives the `x-api-key` Sendiee uses for `/api/match`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm test` runs the flow decision tests. `npm run lint` and `npx tsc --noEmit` check the code.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## API
 
-## Deploy on Vercel
+All `/api/*` routes except `/api/auth/*` and `/api/match` need a signed-in admin session.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Route | Purpose |
+|---|---|
+| `GET/POST /api/folders` · `PATCH/DELETE /api/folders/:id` | folder tree; `flow` is `visual`, `precise` or `null` (inherit) |
+| `GET/POST /api/images` · `PATCH/DELETE /api/images/:id` · `POST /api/images/:id/move` · `POST /api/images/:id/reembed` | product images; `POST` embeds the uploaded file |
+| `POST /api/upload/presign` | signed Supabase upload URL for the browser |
+| `GET /api/stats` | dashboard numbers |
+| `GET/POST /api/settings/api-key` | create or rotate the match API key (shown once) |
+| `POST /api/match` | the customer-facing matcher: `x-api-key` header or admin session; multipart `image`, or JSON `imageUrl` / `imageBase64` |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`POST /api/match` answers:
+
+```json
+{
+  "decision": "match",
+  "flow": "precise",
+  "product": { "id": "…", "productName": "…", "price": 0, "sku": "…", "fullUrl": "…" },
+  "confidence": 0.82,
+  "reason": "Double-check picked it at 82% confidence (similarity 96%)",
+  "verifiedBy": "tiebreak",
+  "candidates": [{ "product": { "…": "…" }, "cosine": 0.96 }],
+  "timings": { "embedMs": 640, "searchMs": 35, "tiebreakMs": 410, "totalMs": 1180 },
+  "notes": []
+}
+```
+
+## Layout
+
+- `src/proxy.ts` — admin pages require a session (Next.js 16 proxy)
+- `src/lib/auth.ts` — next-auth options and the `withAdmin()` route guard
+- `src/lib/flows.ts` — flow definitions and the pure decision rules
+- `src/lib/match.ts` — embed → vector search → flow → decision
+- `src/lib/embedding.ts` (Jina), `src/lib/storage.ts` (Supabase), `src/lib/tiebreak.ts` (OpenAI Decisions)
+- `src/lib/folders.ts`, `src/lib/products.ts`, `src/lib/db.ts` — data layer
+- `src/app/api/**` — route handlers; `src/app/admin/**` — the admin portal

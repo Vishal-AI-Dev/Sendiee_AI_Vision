@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProductImage, Folder } from "@/lib/mock-data";
+import type { ProductImage, Folder } from "@/lib/types";
 import ImageCard from "./ImageCard";
 
 interface ImageGridProps {

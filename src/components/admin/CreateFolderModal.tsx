@@ -1,20 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { Folder } from "@/lib/mock-data";
+import { FLOW_IDS, FLOWS } from "@/lib/flows";
+import type { Folder, FlowId } from "@/lib/types";
 
 interface CreateFolderModalProps {
   onClose: () => void;
-  onConfirm: (name: string) => void;
+  onConfirm: (name: string, flow: FlowId | null) => void;
   existingFolder?: Folder | null; // if set → rename mode
+  /** The flow this folder would inherit when none is chosen. */
+  parentFlow: FlowId;
 }
 
-export default function CreateFolderModal({
-  onClose,
-  onConfirm,
-  existingFolder,
-}: CreateFolderModalProps) {
+export default function CreateFolderModal({ onClose, onConfirm, existingFolder, parentFlow }: CreateFolderModalProps) {
   const [name, setName] = useState(existingFolder?.name ?? "");
+  const [flow, setFlow] = useState<FlowId | "">(existingFolder?.flow ?? "");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -38,10 +38,23 @@ export default function CreateFolderModal({
       setError("Folder name must be 60 characters or fewer.");
       return;
     }
-    onConfirm(trimmed);
+    onConfirm(trimmed, flow === "" ? null : flow);
   };
 
   const isRename = !!existingFolder;
+  const effective = flow === "" ? parentFlow : flow;
+
+  const optionStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1,
+    textAlign: "left",
+    background: active ? "var(--accent-subtle)" : "var(--bg-elevated)",
+    border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+    borderRadius: "var(--radius-md)",
+    padding: "10px 12px",
+    cursor: "pointer",
+    color: "var(--text-primary)",
+    transition: "border-color 0.15s ease, background 0.15s ease",
+  });
 
   return (
     <div
@@ -88,7 +101,7 @@ export default function CreateFolderModal({
                 color: "var(--text-primary)",
               }}
             >
-              {isRename ? "Rename Folder" : "New Folder"}
+              {isRename ? "Edit Folder" : "New Folder"}
             </h2>
           </div>
           <button
@@ -102,6 +115,7 @@ export default function CreateFolderModal({
               borderRadius: 8,
               display: "flex",
             }}
+            aria-label="Close"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -138,6 +152,45 @@ export default function CreateFolderModal({
           <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
             {name.length}/60 characters
           </p>
+
+          {/* Matching flow */}
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 8 }}>
+              Matching flow
+            </div>
+            <div style={{ display: "flex", gap: 8 }} role="radiogroup" aria-label="Matching flow">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={flow === ""}
+                style={optionStyle(flow === "")}
+                onClick={() => setFlow("")}
+                id="flow-option-inherit"
+              >
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Inherit</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                  Uses {FLOWS[parentFlow].short.toLowerCase()} from the parent
+                </div>
+              </button>
+              {FLOW_IDS.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={flow === id}
+                  style={optionStyle(flow === id)}
+                  onClick={() => setFlow(id)}
+                  id={`flow-option-${id}`}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{FLOWS[id].label}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{FLOWS[id].examples}</div>
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
+              {FLOWS[effective].description}
+            </p>
+          </div>
 
           <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
             <button type="button" className="btn-ghost" onClick={onClose}>

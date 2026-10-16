@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ProductImage, Folder } from "@/lib/mock-data";
+import type { ProductImage, Folder } from "@/lib/types";
 import MoveToFolderModal from "./MoveToFolderModal";
 
 interface ImageCardProps {
