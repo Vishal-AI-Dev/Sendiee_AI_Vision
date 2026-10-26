@@ -1,6 +1,7 @@
 import type { ObjectId } from "mongodb";
 import { productsCol, type ProductDoc } from "./db";
 import { embedImage } from "./embedding";
+import { prepareImage } from "./image";
 import { getFolderDoc, effectiveFlowFor, loadFolderMap } from "./folders";
 import { HttpError } from "./http";
 import { downloadObject, fetchImageBytes, publicUrlFor, removeObjects, storageConfigured } from "./storage";
@@ -63,7 +64,8 @@ export async function embedProduct(doc: ProductDoc): Promise<ProductDoc> {
   const col = await productsCol();
   try {
     const { bytes } = await referenceBytes(doc);
-    const result = await embedImage(bytes, "index");
+    const prepared = await prepareImage(bytes);
+    const result = await embedImage(prepared.bytes, "index");
     const $set = {
       embedding: result.vector,
       embeddingModel: result.model,

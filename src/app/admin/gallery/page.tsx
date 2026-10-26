@@ -8,6 +8,7 @@ import {
   updateFolder,
   deleteFolder,
   moveImage,
+  discardUploads,
 } from "@/lib/api";
 import { DEFAULT_FLOW } from "@/lib/flows";
 import type { Folder, FlowId, ProductImage } from "@/lib/types";
@@ -159,6 +160,12 @@ export default function GalleryPage() {
   const handlePostUploadSaved = (newImages: ProductImage[]) => {
     setImages((prev) => [...newImages, ...prev]);
     setUploadedFiles([]);
+  };
+
+  // "Skip All": the files are already in storage, so remove the ones that never became products.
+  const handlePostUploadClosed = (unsavedKeys: string[]) => {
+    setUploadedFiles([]);
+    if (unsavedKeys.length) run(async () => void (await discardUploads(unsavedKeys)));
   };
 
   // ── Breadcrumb config ──────────────────────────────────────────────────────
@@ -488,7 +495,7 @@ export default function GalleryPage() {
           uploadedFiles={uploadedFiles}
           folderId={currentNav.folderId}
           onSaved={handlePostUploadSaved}
-          onClose={() => setUploadedFiles([])}
+          onClose={handlePostUploadClosed}
         />
       )}
     </>

@@ -117,6 +117,11 @@ export interface SaveImagePayload {
   contentType?: string;
 }
 
+/** Remove uploaded files that were never saved as products (after "Skip All"). */
+export async function discardUploads(keys: string[]): Promise<{ removed: number }> {
+  return call("/api/upload", { method: "DELETE", body: JSON.stringify({ keys }) });
+}
+
 /** Create the product record for an uploaded file. The server embeds it before answering. */
 export async function saveImageRecord(payload: SaveImagePayload): Promise<ProductImage> {
   return call("/api/images", { method: "POST", body: JSON.stringify(payload) });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { findOwnerByApiKey, looksLikeApiKey } from "@/lib/apiKeys";
 import { getAdminUser } from "@/lib/auth";
 import { EmbeddingError } from "@/lib/embedding";
+import { ImageDecodeError } from "@/lib/image";
 import { HttpError, jsonError, str } from "@/lib/http";
 import { matchImage, VectorSearchUnavailable } from "@/lib/match";
 import { fetchImageBytes } from "@/lib/storage";
@@ -31,6 +32,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json(result);
   } catch (err) {
     if (err instanceof HttpError) return jsonError(err.status, err.message);
+    if (err instanceof ImageDecodeError) return jsonError(400, err.message);
     if (err instanceof VectorSearchUnavailable) return jsonError(503, err.message);
     if (err instanceof EmbeddingError) return jsonError(502, `Embedding failed: ${err.message}`);
     console.error("[match] error:", err);

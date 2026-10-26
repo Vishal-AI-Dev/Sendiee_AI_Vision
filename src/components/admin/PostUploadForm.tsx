@@ -9,7 +9,8 @@ interface PostUploadFormProps {
   folderId: string | null;
   userId?: string;
   onSaved: (images: ProductImage[]) => void;
-  onClose: () => void;
+  /** Called on "Skip All" with the storage keys of uploads that were not saved. */
+  onClose: (unsavedKeys: string[]) => void;
 }
 
 interface FileFormState {
@@ -30,6 +31,7 @@ export default function PostUploadForm({
   const [currentIdx, setCurrentIdx] = useState(0);
   const [saving, setSaving] = useState(false);
   const [savedImages, setSavedImages] = useState<ProductImage[]>([]);
+  const [savedIdx, setSavedIdx] = useState<Set<number>>(() => new Set());
   const [formState, setFormState] = useState<FileFormState[]>(
     uploadedFiles.map((f) => ({
       productName: f.file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
@@ -71,6 +73,7 @@ export default function PostUploadForm({
 
       const updated = [...savedImages, img];
       setSavedImages(updated);
+      setSavedIdx((prev) => new Set(prev).add(currentIdx));
 
       if (currentIdx + 1 < uploadedFiles.length) {
         setCurrentIdx((i) => i + 1);
@@ -265,7 +268,10 @@ export default function PostUploadForm({
 
             {/* Actions */}
             <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
-              <button className="btn-ghost" onClick={onClose}>
+              <button
+                className="btn-ghost"
+                onClick={() => onClose(uploadedFiles.filter((_, i) => !savedIdx.has(i)).map((f) => f.key))}
+              >
                 Skip All
               </button>
               <button

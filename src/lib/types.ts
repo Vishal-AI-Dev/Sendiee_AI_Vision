@@ -67,4 +67,6 @@ export interface MatchResult {
   candidates: MatchCandidate[];
   timings: Record<string, number>;
   notes: string[];
+  /** Photo quality check on the customer photo; a failed check short-circuits to no_match. */
+  quality: { ok: boolean; reasons: string[] };
 }

@@ -6,20 +6,9 @@
 // MongoDB Atlas; on a local server this prints the definition to create by hand.
 
 import { MongoClient } from "mongodb";
-import { readFileSync } from "node:fs";
+import { loadEnv } from "./_env";
 
-function loadEnv(file: string) {
-  try {
-    for (const line of readFileSync(file, "utf8").split("\n")) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-    }
-  } catch {
-    /* no file */
-  }
-}
-loadEnv(".env.local");
-loadEnv(".env");
+loadEnv();
 
 const uri = process.env.MONGODB_URI;
 if (!uri) {

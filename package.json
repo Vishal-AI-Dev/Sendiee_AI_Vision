@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
-    "ensure-indexes": "tsx scripts/ensure-indexes.ts"
+    "ensure-indexes": "tsx scripts/ensure-indexes.ts",
+    "compare-embeddings": "tsx scripts/compare-embeddings.ts",
+    "decisions-tiebreak": "tsx scripts/decisions-tiebreak.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
@@ -17,7 +19,8 @@
     "next": "16.3.0",
     "next-auth": "^4.24.15",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

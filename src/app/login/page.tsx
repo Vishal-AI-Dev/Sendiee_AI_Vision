@@ -10,6 +10,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  // Honour ?callbackUrl= from the admin redirect, but only same-origin paths (no open redirect).
+  const callbackUrl = (): string => {
+    const raw = new URLSearchParams(window.location.search).get("callbackUrl");
+    if (!raw) return "/account";
+    try {
+      const url = new URL(raw, window.location.origin);
+      return url.origin === window.location.origin && url.pathname.startsWith("/") ? url.pathname + url.search : "/account";
+    } catch {
+      return "/account";
+    }
+  };
 
   const handleEmailSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -18,7 +29,7 @@ export default function LoginPage() {
     const result = await signIn("credentials", {
       email,
       password,
-      callbackUrl: "/account",
+      callbackUrl: callbackUrl(),
       redirect: false,
     });
     setLoading(false);
@@ -30,7 +41,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    signIn("google", { callbackUrl: "/account" });
+    signIn("google", { callbackUrl: callbackUrl() });
   };
 
   return (

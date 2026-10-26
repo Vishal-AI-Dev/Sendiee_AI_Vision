@@ -43,12 +43,19 @@ function normalise(vector: number[]): number[] {
 /**
  * Embed one image. `image` is either raw bytes or a publicly reachable URL.
  */
-export async function embedImage(image: Buffer | string, purpose: EmbedPurpose): Promise<EmbeddingResult> {
+export interface EmbedOptions {
+  /** Override JINA_MODEL (the A/B script compares models side by side). */
+  model?: string;
+  /** Override the task adapter, e.g. "text-matching" for symmetric similarity. */
+  task?: string;
+}
+
+export async function embedImage(image: Buffer | string, purpose: EmbedPurpose, options: EmbedOptions = {}): Promise<EmbeddingResult> {
   const apiKey = process.env.JINA_API_KEY;
   if (!apiKey) throw new EmbeddingError("Missing JINA_API_KEY environment variable");
 
-  const model = embeddingModel();
-  const task = taskFor(model, purpose);
+  const model = options.model || embeddingModel();
+  const task = options.task ?? taskFor(model, purpose);
   const body: Record<string, unknown> = {
     model,
     normalized: true,

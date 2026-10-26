@@ -17,6 +17,7 @@ export interface TiebreakResult {
   probabilities: Record<string, number>; // by candidate id, plus "none"
   model: string;
   ms: number;
+  tokens: number | null;
 }
 
 export class TiebreakError extends Error {}
@@ -93,6 +94,7 @@ export async function tiebreakWithDecisions(
   if (!res.ok) throw new TiebreakError(`Decisions API ${res.status}: ${text.slice(0, 300)}`);
 
   let parsed: {
+    usage?: { input_tokens?: number; total_tokens?: number };
     answers?: Array<{
       type: string;
       name?: string;
@@ -121,5 +123,6 @@ export async function tiebreakWithDecisions(
       ? answer.confidence
       : (pick ? probabilities[pick] : probabilities.none) ?? 0;
 
-  return { pick, confidence, probabilities, model: MODEL, ms: Date.now() - started };
+  const tokens = parsed.usage?.input_tokens ?? parsed.usage?.total_tokens ?? null;
+  return { pick, confidence, probabilities, model: MODEL, ms: Date.now() - started, tokens };
 }
